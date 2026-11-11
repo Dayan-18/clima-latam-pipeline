@@ -1,5 +1,5 @@
 {% docs __overview__ %}
-# Clima LATAM · Data pipeline
+# LATAM Weather · Data pipeline
 
 Daily weather for 10 Latin American capitals, from the free
 [Open-Meteo](https://open-meteo.com) API to a public dashboard.

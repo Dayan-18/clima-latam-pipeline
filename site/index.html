@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clima LATAM · Pipeline de datos</title>
-<meta name="description" content="Clima diario de 10 capitales latinoamericanas: Open-Meteo → DuckDB → dbt → GitHub Actions → GitHub Pages">
+<title>LATAM Weather · Data Pipeline</title>
+<meta name="description" content="Daily weather for 10 Latin American capitals: Open-Meteo → DuckDB → dbt → GitHub Actions → GitHub Pages">
 <style>
   :root {
     --bg: #f6f7f9; --card: #ffffff; --text: #16191f; --muted: #5d6673;
@@ -54,46 +54,46 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Clima LATAM</h1>
-    <p>Clima diario de 10 capitales latinoamericanas: últimos 60 días observados y pronóstico de 7 días.</p>
+    <h1>LATAM Weather</h1>
+    <p>Daily weather for 10 Latin American capitals: last 60 observed days and a 7-day forecast.</p>
     <ul class="flow">
       <li>Open-Meteo API</li><li>Python</li><li>DuckDB</li><li>dbt</li><li>GitHub Actions</li><li>GitHub Pages</li>
     </ul>
   </header>
 
   <section class="kpis">
-    <div class="card kpi"><div class="label">Ciudades</div><div class="value" id="k-cities">–</div></div>
-    <div class="card kpi"><div class="label">Registros diarios</div><div class="value" id="k-rows">–</div></div>
-    <div class="card kpi"><div class="label">Pruebas de calidad dbt</div><div class="value ok" id="k-tests">–</div></div>
-    <div class="card kpi"><div class="label">Última actualización</div><div class="value" id="k-updated" style="font-size:18px">–</div></div>
+    <div class="card kpi"><div class="label">Cities</div><div class="value" id="k-cities">–</div></div>
+    <div class="card kpi"><div class="label">Daily records</div><div class="value" id="k-rows">–</div></div>
+    <div class="card kpi"><div class="label">dbt data tests passed</div><div class="value ok" id="k-tests">–</div></div>
+    <div class="card kpi"><div class="label">Last updated</div><div class="value" id="k-updated" style="font-size:18px">–</div></div>
   </section>
 
   <section class="card">
     <div class="row">
-      <h2>Temperatura diaria (°C)</h2>
-      <select id="city" aria-label="Ciudad"></select>
+      <h2>Daily temperature (°C)</h2>
+      <select id="city" aria-label="City"></select>
     </div>
     <div class="chart"><canvas id="tempChart"></canvas></div>
-    <p class="note">Línea continua: días observados. Línea punteada: pronóstico.</p>
+    <p class="note">Solid line: observed days. Dashed line: forecast.</p>
   </section>
 
   <div class="grid2">
     <section class="card">
-      <h2>Temperatura promedio del periodo (°C)</h2>
+      <h2>Average temperature over the period (°C)</h2>
       <div class="chart"><canvas id="avgChart"></canvas></div>
     </section>
     <section class="card">
-      <h2>Precipitación acumulada del periodo (mm)</h2>
+      <h2>Total precipitation over the period (mm)</h2>
       <div class="chart"><canvas id="rainChart"></canvas></div>
     </section>
   </div>
 
   <section class="card table-wrap">
-    <h2>Resumen por ciudad <span class="note">(mart_city_summary)</span></h2>
+    <h2>Summary by city <span class="note">(mart_city_summary)</span></h2>
     <table>
       <thead><tr>
-        <th>Ciudad</th><th>Clima dominante</th><th>Altitud (m)</th><th>Prom. °C</th><th>Máx °C</th>
-        <th>Mín °C</th><th>Lluvia mm</th><th>Días lluvia</th><th>Pronóstico 7d °C</th><th>Δ °C</th>
+        <th>City</th><th>Dominant weather</th><th>Elevation (m)</th><th>Avg °C</th><th>Max °C</th>
+        <th>Min °C</th><th>Rain mm</th><th>Rainy days</th><th>7-day forecast °C</th><th>Δ °C</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -101,10 +101,10 @@
 
   <footer>
     <span id="source"></span>
-    <a href="docs/index.html">Documentación y linaje (dbt docs)</a>
-    <a href="data/fct_weather_daily.csv">Descargar CSV</a>
-    <a href="data/fct_weather_daily.parquet">Descargar Parquet</a>
-    <a id="repo" href="#" hidden>Código fuente</a>
+    <a href="docs/index.html">Documentation and lineage (dbt docs)</a>
+    <a href="data/fct_weather_daily.csv">Download CSV</a>
+    <a href="data/fct_weather_daily.parquet">Download Parquet</a>
+    <a id="repo" href="#" hidden>Source code</a>
   </footer>
 </div>
 
@@ -133,13 +133,13 @@ function drawTemp(data, cityId) {
     type: "line",
     data: {
       labels: days.map(d => d.weather_date),
-      datasets: [line("Máxima", "temp_max_c", css("--accent")), line("Mínima", "temp_min_c", css("--cold"))],
+      datasets: [line("Max", "temp_max_c", css("--accent")), line("Min", "temp_min_c", css("--cold"))],
     },
     options: { ...baseOptions(),
       plugins: { tooltip: { callbacks: {
         afterBody: (items) => {
           const d = days[items[0].dataIndex];
-          return `${d.weather_description} · ${fmt(d.precipitation_mm)} mm${d.is_forecast ? " (pronóstico)" : ""}`;
+          return `${d.weather_description} · ${fmt(d.precipitation_mm)} mm${d.is_forecast ? " (forecast)" : ""}`;
         } } } },
       scales: { x: { ticks: { maxTicksLimit: 8 } } } },
   };
@@ -178,11 +178,11 @@ fetch("data.json")
   .then(data => {
     const cities = data.cities;
     document.getElementById("k-cities").textContent = cities.length;
-    document.getElementById("k-rows").textContent = data.row_count.toLocaleString("es");
+    document.getElementById("k-rows").textContent = data.row_count.toLocaleString("en");
     document.getElementById("k-tests").textContent = `${data.dbt_tests.passed}/${data.dbt_tests.total}`;
     document.getElementById("k-updated").textContent =
-      new Date(data.generated_at).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" });
-    document.getElementById("source").textContent = `Fuente: ${data.source}`;
+      new Date(data.generated_at).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" });
+    document.getElementById("source").textContent = `Source: ${data.source}`;
     if (data.repo_url) {
       const repo = document.getElementById("repo");
       repo.href = data.repo_url; repo.hidden = false;
@@ -199,7 +199,7 @@ fetch("data.json")
     fillTable(cities);
   })
   .catch(err => {
-    document.querySelector("header p").textContent = "No se pudo cargar data.json: " + err;
+    document.querySelector("header p").textContent = "Could not load data.json: " + err;
   });
 </script>
 </body>

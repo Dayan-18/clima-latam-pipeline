@@ -1,49 +1,51 @@
-# Clima LATAM · Pipeline de Data Engineering
+# LATAM Weather · Data Engineering Pipeline
 
-Pipeline de datos de punta a punta que descarga cada día el clima de **10 capitales latinoamericanas**, lo transforma y valida con **dbt**, y publica un dashboard público en **GitHub Pages**. Todo se ejecuta y despliega automáticamente con **GitHub Actions**. Sin AWS y sin costo.
+End-to-end data pipeline that downloads daily weather for **10 Latin American capitals**, transforms and validates it with **dbt**, and publishes a public dashboard on **GitHub Pages**. Everything runs and deploys automatically with **GitHub Actions**. No AWS, no cost.
 
-**Demo:** `https://dayan-18.github.io/clima-latam-pipeline/`
-**Documentación dbt (linaje):** `https://dayan-18.github.io/clima-latam-pipeline/docs/`
+**Live demo:** https://dayan-18.github.io/clima-latam-pipeline/
+**dbt docs (lineage):** https://dayan-18.github.io/clima-latam-pipeline/docs/
 
-## Arquitectura
+![Architecture](docs/img/architecture.png)
+
+## Architecture
 
 ```
  ┌──────────────┐   ┌─────────────┐   ┌──────────────────────────────┐   ┌──────────────────┐
  │ Open-Meteo   │──▶│  Python     │──▶│  DuckDB  (warehouse)         │──▶│  GitHub Pages    │
- │ API (gratis) │   │  extract.py │   │  raw → staging → marts (dbt) │   │  dashboard + docs│
- └──────────────┘   │  load.py    │   │  23 pruebas de calidad       │   │  CSV / Parquet   │
+ │ API (free)   │   │  extract.py │   │  raw → staging → marts (dbt) │   │  dashboard + docs│
+ └──────────────┘   │  load.py    │   │  23 data quality tests       │   │  CSV / Parquet   │
                     └─────────────┘   └──────────────────────────────┘   └──────────────────┘
         ▲                                                                          │
-        └──────────── GitHub Actions: cron diario + cada push a main ◀─────────────┘
+        └──────────── GitHub Actions: daily cron + every push to main ◀────────────┘
 ```
 
-| Capa | Herramienta | Qué hace |
+| Layer | Tool | What it does |
 |---|---|---|
-| Ingesta | Python + `requests` | Una llamada a la API para las 10 ciudades; guarda el JSON crudo en `data/raw/` |
-| Almacenamiento | DuckDB | Base de datos analítica en un solo archivo (`data/warehouse.duckdb`) |
-| Transformación | dbt-core + dbt-duckdb | Seeds, staging, marts, pruebas de datos y documentación |
-| Orquestación / CI/CD | GitHub Actions | Ejecuta todo a diario (cron) y en cada push; si una prueba falla, no despliega |
-| Publicación | GitHub Pages | Dashboard estático, dbt docs y datos abiertos descargables |
+| Ingestion | Python + `requests` | One API call for all 10 cities; stores the raw JSON in `data/raw/` |
+| Storage | DuckDB | Single-file analytical database (`data/warehouse.duckdb`) |
+| Transformation | dbt-core + dbt-duckdb | Seeds, staging, marts, data tests and documentation |
+| Orchestration / CI/CD | GitHub Actions | Runs everything daily (cron) and on every push; if a test fails, nothing is deployed |
+| Serving | GitHub Pages | Static dashboard, dbt docs and downloadable open data |
 
-## Modelo de datos
+## Data model
 
 ```
 raw.weather_daily   ─▶ stg_open_meteo__weather_daily ─┬─▶ fct_weather_daily ─┐
 seeds.weather_codes ──────────────────────────────────┘                      ├─▶ mart_city_summary
-seeds.cities (+ altitud desde staging) ─────────────────▶ dim_cities ────────┘
+seeds.cities (+ elevation from staging) ────────────────▶ dim_cities ────────┘
 ```
 
-- `fct_weather_daily`: una fila por ciudad y día (observado + pronóstico), con temperatura media, amplitud térmica, descripción del clima y bandera de día lluvioso.
-- `dim_cities`: ciudades con altitud y zona horaria.
-- `mart_city_summary`: KPIs por ciudad y comparación con el pronóstico de 7 días.
+- `fct_weather_daily`: one row per city per day (observed + forecast), with average temperature, daily range, weather description and a rainy-day flag.
+- `dim_cities`: cities with elevation and timezone.
+- `mart_city_summary`: city-level KPIs and a comparison with the 7-day forecast.
 
-## Calidad de datos
+## Data quality
 
-`dbt build` ejecuta 23 pruebas: `unique`, `not_null`, `relationships`, `accepted_values`, una prueba genérica propia (`value_between`) y una prueba singular (`temp_max >= temp_min`). Si alguna falla, el workflow se detiene y la versión anterior del sitio sigue publicada.
+`dbt build` runs 23 tests: `unique`, `not_null`, `relationships`, `accepted_values`, a custom generic test (`value_between`) and a singular test (`temp_max >= temp_min`). If any of them fails, the workflow stops and the previous version of the site stays online.
 
-## Ejecutarlo en local
+## Run it locally
 
-Requiere Python 3.11+.
+Requires Python 3.11+.
 
 ```bash
 python -m venv .venv
@@ -51,28 +53,32 @@ python -m venv .venv
 pip install -r requirements.txt
 pytest -q
 python -m pipeline.run
-python -m http.server 8000 --directory public   # abrir http://localhost:8000
+python -m http.server 8000 --directory public   # open http://localhost:8000
 ```
 
-## Desplegar tu propia copia
+## Deploy your own copy
 
-1. Haz fork (o sube este código a un repositorio **público** nuevo).
-2. En GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Haz push a `main` (o ve a **Actions → Data pipeline → Run workflow**).
-4. En 1–2 minutos el sitio queda en `https://<tu-usuario>.github.io/<repo>/`.
+1. Fork this repository (it must be **public** for free GitHub Pages).
+2. On GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Push to `main` (or go to **Actions → Data pipeline → Run workflow**).
+4. After 1–2 minutes the site is live at `https://<your-user>.github.io/<repo>/`.
 
-Después se actualiza solo todos los días a las 11:00 UTC.
+From then on it refreshes itself every day at 11:00 UTC.
 
-## Estructura
+## Project structure
 
 ```
-.github/workflows/pipeline.yml   CI/CD: tests → pipeline → deploy a Pages
+.github/workflows/pipeline.yml   CI/CD: tests → pipeline → deploy to Pages
 pipeline/                        extract.py, load.py, export_site.py, run.py
-dbt/                             proyecto dbt (seeds, models, tests, macros)
-site/index.html                  plantilla del dashboard (Chart.js)
-tests/                           pruebas unitarias (pytest)
+dbt/                             dbt project (seeds, models, tests, macros)
+site/index.html                  dashboard template (Chart.js)
+tests/                           unit tests (pytest)
 ```
 
-## Fuente de datos
+## Data source
 
-[Open-Meteo](https://open-meteo.com/) — API de clima gratuita y sin API key (licencia CC BY 4.0).
+[Open-Meteo](https://open-meteo.com/) — free weather API, no API key required (CC BY 4.0).
+
+## Author
+
+[Dayan-18](https://github.com/Dayan-18)

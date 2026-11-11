@@ -22,8 +22,8 @@ select
     weather.precipitation_mm,
     weather.wind_max_kmh,
     weather.weather_code,
-    coalesce(codes.description, 'Desconocido')               as weather_description,
-    coalesce(codes.category, 'otro')                          as weather_category,
+    coalesce(codes.description, 'Unknown')               as weather_description,
+    coalesce(codes.category, 'other')                          as weather_category,
     weather.precipitation_mm >= 1.0                           as is_rainy_day,
     -- today and later come from the forecast model, earlier days are observed
     weather.weather_date >= cast(weather.extracted_at as date) as is_forecast,
