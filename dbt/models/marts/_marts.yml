@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: dim_cities
+    description: Cities tracked by the pipeline, with elevation and timezone reported by the API.
+    columns:
+      - name: city_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: city_name
+        data_tests: [not_null]
+      - name: elevation_m
+        description: Elevation in meters (La Paz and Quito show why altitude matters for climate).
+        data_tests: [not_null]
+
+  - name: fct_weather_daily
+    description: Daily weather per city (observed + forecast) with derived metrics.
+    columns:
+      - name: weather_day_id
+        description: Surrogate key `<city_id>_<yyyymmdd>`. Guarantees one row per city per day.
+        data_tests: [unique, not_null]
+      - name: city_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_cities')
+                field: city_id
+      - name: temp_avg_c
+        description: (max + min) / 2 in °C.
+      - name: temp_range_c
+        description: Daily thermal amplitude (max - min) in °C.
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 40
+      - name: weather_category
+        description: Simplified weather group derived from the WMO code.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [despejado, nublado, niebla, lluvia, nieve, tormenta, otro]
+      - name: is_rainy_day
+        description: True when precipitation >= 1 mm.
+      - name: is_forecast
+        description: True for today and future days (forecast), false for observed days.
+
+  - name: mart_city_summary
+    description: City-level KPIs for the observed period and the 7-day forecast. Feeds the dashboard.
+    columns:
+      - name: city_id
+        data_tests: [unique, not_null]
+      - name: observed_days
+        data_tests:
+          - not_null
+          - value_between:
+              arguments:
+                min_value: 30
+                max_value: 92
+      - name: forecast_temp_delta_c
+        description: Forecast average minus observed average (°C). Positive = warmer days ahead.

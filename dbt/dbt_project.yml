@@ -1,0 +1,31 @@
+name: clima_latam
+version: "1.0.0"
+profile: clima_latam
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  clima_latam:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  clima_latam:
+    +schema: seeds
+    cities:
+      +column_types:
+        city_id: varchar
+        latitude: double
+        longitude: double
+    weather_codes:
+      +column_types:
+        weather_code: integer

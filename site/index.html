@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clima LATAM · Pipeline de datos</title>
+<meta name="description" content="Clima diario de 10 capitales latinoamericanas: Open-Meteo → DuckDB → dbt → GitHub Actions → GitHub Pages">
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #16191f; --muted: #5d6673;
+    --border: #e3e6eb; --accent: #e8590c; --cold: #1c7ed6; --rain: #0ca678;
+    --chip: #f1f3f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #171a21; --text: #e9ecef; --muted: #9aa3ad;
+      --border: #2a2f39; --accent: #ff8a3d; --cold: #4dabf7; --rain: #38d9a9;
+      --chip: #222731;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 16px 48px; }
+  header h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+  .flow li { background: var(--chip); border: 1px solid var(--border); border-radius: 999px;
+             padding: 2px 10px; font-size: 13px; }
+  .flow li + li::before { content: "→ "; color: var(--muted); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 24px 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .kpi .label { color: var(--muted); font-size: 13px; }
+  .kpi .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .kpi .value.ok { color: var(--rain); }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  select { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+           background: var(--card); color: var(--text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+  .chart { position: relative; height: 300px; }
+  .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .table-wrap { overflow-x: auto; margin-top: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  .up { color: var(--accent); } .down { color: var(--cold); }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  a { color: var(--cold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Clima LATAM</h1>
+    <p>Clima diario de 10 capitales latinoamericanas: últimos 60 días observados y pronóstico de 7 días.</p>
+    <ul class="flow">
+      <li>Open-Meteo API</li><li>Python</li><li>DuckDB</li><li>dbt</li><li>GitHub Actions</li><li>GitHub Pages</li>
+    </ul>
+  </header>
+
+  <section class="kpis">
+    <div class="card kpi"><div class="label">Ciudades</div><div class="value" id="k-cities">–</div></div>
+    <div class="card kpi"><div class="label">Registros diarios</div><div class="value" id="k-rows">–</div></div>
+    <div class="card kpi"><div class="label">Pruebas de calidad dbt</div><div class="value ok" id="k-tests">–</div></div>
+    <div class="card kpi"><div class="label">Última actualización</div><div class="value" id="k-updated" style="font-size:18px">–</div></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <h2>Temperatura diaria (°C)</h2>
+      <select id="city" aria-label="Ciudad"></select>
+    </div>
+    <div class="chart"><canvas id="tempChart"></canvas></div>
+    <p class="note">Línea continua: días observados. Línea punteada: pronóstico.</p>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>Temperatura promedio del periodo (°C)</h2>
+      <div class="chart"><canvas id="avgChart"></canvas></div>
+    </section>
+    <section class="card">
+      <h2>Precipitación acumulada del periodo (mm)</h2>
+      <div class="chart"><canvas id="rainChart"></canvas></div>
+    </section>
+  </div>
+
+  <section class="card table-wrap">
+    <h2>Resumen por ciudad <span class="note">(mart_city_summary)</span></h2>
+    <table>
+      <thead><tr>
+        <th>Ciudad</th><th>Clima dominante</th><th>Altitud (m)</th><th>Prom. °C</th><th>Máx °C</th>
+        <th>Mín °C</th><th>Lluvia mm</th><th>Días lluvia</th><th>Pronóstico 7d °C</th><th>Δ °C</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+
+  <footer>
+    <span id="source"></span>
+    <a href="docs/index.html">Documentación y linaje (dbt docs)</a>
+    <a href="data/fct_weather_daily.csv">Descargar CSV</a>
+    <a href="data/fct_weather_daily.parquet">Descargar Parquet</a>
+    <a id="repo" href="#" hidden>Código fuente</a>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (n, d = 1) => (n === null || n === undefined) ? "–" : Number(n).toFixed(d);
+let tempChart;
+
+function baseOptions() {
+  Chart.defaults.color = css("--muted");
+  Chart.defaults.borderColor = css("--border");
+  Chart.defaults.font.family = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  return { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false } };
+}
+
+function drawTemp(data, cityId) {
+  const days = data.daily[cityId] || [];
+  const firstForecast = days.findIndex(d => d.is_forecast);
+  const dashed = (ctx) => firstForecast >= 0 && ctx.p1DataIndex > firstForecast ? [5, 4] : undefined;
+  const line = (label, key, color) => ({
+    label, data: days.map(d => d[key]), borderColor: color, backgroundColor: color,
+    pointRadius: 0, borderWidth: 2, tension: 0.3, segment: { borderDash: dashed },
+  });
+  const cfg = {
+    type: "line",
+    data: {
+      labels: days.map(d => d.weather_date),
+      datasets: [line("Máxima", "temp_max_c", css("--accent")), line("Mínima", "temp_min_c", css("--cold"))],
+    },
+    options: { ...baseOptions(),
+      plugins: { tooltip: { callbacks: {
+        afterBody: (items) => {
+          const d = days[items[0].dataIndex];
+          return `${d.weather_description} · ${fmt(d.precipitation_mm)} mm${d.is_forecast ? " (pronóstico)" : ""}`;
+        } } } },
+      scales: { x: { ticks: { maxTicksLimit: 8 } } } },
+  };
+  if (tempChart) tempChart.destroy();
+  tempChart = new Chart(document.getElementById("tempChart"), cfg);
+}
+
+function drawBars(canvasId, cities, key, color) {
+  const sorted = [...cities].sort((a, b) => b[key] - a[key]);
+  new Chart(document.getElementById(canvasId), {
+    type: "bar",
+    data: { labels: sorted.map(c => c.city_name),
+            datasets: [{ data: sorted.map(c => c[key]), backgroundColor: color, borderRadius: 4 }] },
+    options: { ...baseOptions(), indexAxis: "y", plugins: { legend: { display: false } } },
+  });
+}
+
+function fillTable(cities) {
+  document.getElementById("tbody").innerHTML = cities.map(c => {
+    const delta = c.forecast_temp_delta_c;
+    const cls = delta > 0 ? "up" : delta < 0 ? "down" : "";
+    return `<tr>
+      <td><strong>${c.city_name}</strong> <span class="note">${c.country}</span></td>
+      <td>${c.dominant_category ?? "–"}</td>
+      <td>${c.elevation_m ?? "–"}</td>
+      <td>${fmt(c.avg_temp_c)}</td><td>${fmt(c.max_temp_c)}</td><td>${fmt(c.min_temp_c)}</td>
+      <td>${fmt(c.total_precipitation_mm)}</td><td>${c.rainy_days ?? "–"}</td>
+      <td>${fmt(c.forecast_avg_temp_c)}</td>
+      <td class="${cls}">${delta > 0 ? "+" : ""}${fmt(delta)}</td>
+    </tr>`;
+  }).join("");
+}
+
+fetch("data.json")
+  .then(r => r.json())
+  .then(data => {
+    const cities = data.cities;
+    document.getElementById("k-cities").textContent = cities.length;
+    document.getElementById("k-rows").textContent = data.row_count.toLocaleString("es");
+    document.getElementById("k-tests").textContent = `${data.dbt_tests.passed}/${data.dbt_tests.total}`;
+    document.getElementById("k-updated").textContent =
+      new Date(data.generated_at).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" });
+    document.getElementById("source").textContent = `Fuente: ${data.source}`;
+    if (data.repo_url) {
+      const repo = document.getElementById("repo");
+      repo.href = data.repo_url; repo.hidden = false;
+    }
+
+    const select = document.getElementById("city");
+    select.innerHTML = cities.map(c => `<option value="${c.city_id}">${c.city_name}</option>`).join("");
+    select.value = cities.some(c => c.city_id === "lima") ? "lima" : cities[0].city_id;
+    select.addEventListener("change", () => drawTemp(data, select.value));
+
+    drawTemp(data, select.value);
+    drawBars("avgChart", cities, "avg_temp_c", css("--accent"));
+    drawBars("rainChart", cities, "total_precipitation_mm", css("--rain"));
+    fillTable(cities);
+  })
+  .catch(err => {
+    document.querySelector("header p").textContent = "No se pudo cargar data.json: " + err;
+  });
+</script>
+</body>
+</html>

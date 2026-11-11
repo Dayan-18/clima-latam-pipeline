@@ -1,0 +1,8 @@
+clima_latam:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # pipeline/run.py sets DUCKDB_PATH; the default works when running dbt from this folder
+      path: "{{ env_var('DUCKDB_PATH', '../data/warehouse.duckdb') }}"
+      threads: 4

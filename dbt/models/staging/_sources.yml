@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: open_meteo
+    description: Raw data loaded by pipeline/load.py from the Open-Meteo forecast API.
+    schema: raw
+    tables:
+      - name: weather_daily
+        description: One row per city per day, exactly as the API returns it (flattened).
+        columns:
+          - name: city_id
+            data_tests: [not_null]
+          - name: weather_date
+            data_tests: [not_null]

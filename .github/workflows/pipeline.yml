@@ -1,0 +1,59 @@
+name: Data pipeline
+
+on:
+  push:
+    branches: [main]          # every change to the code redeploys
+  pull_request:               # PRs run tests + pipeline, without deploying
+  schedule:
+    - cron: "0 11 * * *"      # every day at 11:00 UTC (06:00 Lima / Bogotá)
+  workflow_dispatch:          # manual "Run workflow" button
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Extract, load, transform and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unit tests (pytest)
+        run: pytest -q
+
+      - name: Run pipeline (extract -> load -> dbt build -> publish)
+        run: python -m pipeline.run
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

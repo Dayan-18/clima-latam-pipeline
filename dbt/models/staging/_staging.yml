@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: stg_open_meteo__weather_daily
+    description: Clean daily weather per city (typed, renamed, rounded, nulls removed).
+    columns:
+      - name: city_id
+        description: City key (matches the `cities` seed).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('cities')
+                field: city_id
+      - name: weather_date
+        description: Local calendar date for the city.
+        data_tests: [not_null]
+      - name: temp_max_c
+        description: Maximum temperature at 2 m (°C).
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: -60
+                max_value: 60
+      - name: temp_min_c
+        description: Minimum temperature at 2 m (°C).
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: -60
+                max_value: 60
+      - name: precipitation_mm
+        description: Total daily precipitation (mm). Missing values become 0.
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 500
+      - name: wind_max_kmh
+        description: Maximum wind speed at 10 m (km/h).
+      - name: weather_code
+        description: WMO weather code (see the `weather_codes` seed).
+      - name: elevation_m
+        description: Elevation of the grid point used by the model (m).
+      - name: extracted_at
+        description: UTC timestamp of the API extraction (lineage).

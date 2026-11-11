@@ -1,0 +1,11 @@
+city_id,city_name,country,country_code,latitude,longitude
+lima,Lima,Perú,PE,-12.0464,-77.0428
+bogota,Bogotá,Colombia,CO,4.7110,-74.0721
+santiago,Santiago,Chile,CL,-33.4489,-70.6693
+buenos_aires,Buenos Aires,Argentina,AR,-34.6037,-58.3816
+ciudad_de_mexico,Ciudad de México,México,MX,19.4326,-99.1332
+quito,Quito,Ecuador,EC,-0.1807,-78.4678
+la_paz,La Paz,Bolivia,BO,-16.4897,-68.1193
+caracas,Caracas,Venezuela,VE,10.4806,-66.9036
+montevideo,Montevideo,Uruguay,UY,-34.9011,-56.1645
+asuncion,Asunción,Paraguay,PY,-25.2637,-57.5759

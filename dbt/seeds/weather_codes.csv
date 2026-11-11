@@ -1,0 +1,29 @@
+weather_code,description,category
+0,Despejado,despejado
+1,Mayormente despejado,despejado
+2,Parcialmente nublado,nublado
+3,Nublado,nublado
+45,Niebla,niebla
+48,Niebla con escarcha,niebla
+51,Llovizna ligera,lluvia
+53,Llovizna moderada,lluvia
+55,Llovizna densa,lluvia
+56,Llovizna helada ligera,lluvia
+57,Llovizna helada densa,lluvia
+61,Lluvia ligera,lluvia
+63,Lluvia moderada,lluvia
+65,Lluvia fuerte,lluvia
+66,Lluvia helada ligera,lluvia
+67,Lluvia helada fuerte,lluvia
+71,Nevada ligera,nieve
+73,Nevada moderada,nieve
+75,Nevada fuerte,nieve
+77,Granos de nieve,nieve
+80,Chubascos ligeros,lluvia
+81,Chubascos moderados,lluvia
+82,Chubascos violentos,lluvia
+85,Chubascos de nieve ligeros,nieve
+86,Chubascos de nieve fuertes,nieve
+95,Tormenta,tormenta
+96,Tormenta con granizo ligero,tormenta
+99,Tormenta con granizo fuerte,tormenta
